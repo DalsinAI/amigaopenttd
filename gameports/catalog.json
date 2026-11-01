@@ -1,5 +1,51 @@
 {
   "schema": 1,
+  "runtimeDependencies": {
+    "opengfx": {
+      "kind": "git",
+      "url": "https://github.com/OpenTTD/OpenGFX.git",
+      "commit": "bdea55136ab72c9acd69c8fc761bd8088398bef1",
+      "submodules": false
+    },
+    "opensfx": {
+      "kind": "git",
+      "url": "https://github.com/OpenTTD/OpenSFX.git",
+      "commit": "5ad556bc777dc482b5998368a8e52fbe0f2d5837",
+      "submodules": false
+    },
+    "openmsx": {
+      "kind": "git",
+      "url": "https://github.com/OpenTTD/OpenMSX.git",
+      "commit": "312ca0ae46a271fb65ba49674b5e935ca0f41036",
+      "submodules": false
+    }
+  },
+  "runtimePackages": {
+    "opengfx": {
+      "kind": "archive",
+      "version": "8.0",
+      "license": "GPL-2.0-only",
+      "url": "https://cdn.openttd.org/opengfx-releases/8.0/opengfx-8.0-all.zip",
+      "filename": "opengfx-8.0-all.zip",
+      "sha256": "43a0c1dabf39cb865394f3a6cc36d4da5c10ecfaaf55652043104806810903be"
+    },
+    "opensfx": {
+      "kind": "archive",
+      "version": "1.0.3",
+      "license": "CC-BY-SA-3.0",
+      "url": "https://cdn.openttd.org/opensfx-releases/1.0.3/opensfx-1.0.3-all.zip",
+      "filename": "opensfx-1.0.3-all.zip",
+      "sha256": "e0a218b7dd9438e701503b0f84c25a97c1c11b7c2f025323fb19d6db16ef3759"
+    },
+    "openmsx": {
+      "kind": "archive",
+      "version": "0.4.2",
+      "license": "GPL-2.0-only",
+      "url": "https://cdn.openttd.org/openmsx-releases/0.4.2/openmsx-0.4.2-all.zip",
+      "filename": "openmsx-0.4.2-all.zip",
+      "sha256": "5a4277a2e62d87f2952ea5020dc20fb2f6ffafdccf9913fbf35ad45ee30ec762"
+    }
+  },
   "ports": {
     "openttd": {
       "order": 13,
@@ -10,7 +56,7 @@
         "commit": "d48d693d7ff09b643846e23a5f033cf3582ab27f",
         "submodules": false
       },
-      "contentPolicy": "Preserve upstream licensing and third-party notices. OpenGFX/OpenSFX/OpenMSX or other runtime content must be reviewed and packaged separately with recorded provenance."
+      "contentPolicy": "Preserve upstream licensing and third-party notices. Ship the pinned OpenGFX/OpenSFX/OpenMSX sets by default. Original Transport Tycoon Deluxe data may only be imported from user-owned media and must never be redistributed."
     }
   }
 }

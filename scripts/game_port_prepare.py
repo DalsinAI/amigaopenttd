@@ -13,9 +13,11 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import tarfile
 import urllib.request
+import zipfile
 from pathlib import Path, PurePosixPath
 
 CATALOG_REL = Path("gameports/catalog.json")
@@ -59,6 +61,24 @@ def read_catalog(root: Path, catalog_path: Path | None = None) -> dict:
         commit = str(source.get("commit") or "")
         if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit.lower()):
             raise ValueError(f"{dep_id}: build dependency is not pinned to a 40-character commit")
+    runtime_dependencies = data.get("runtimeDependencies") or {}
+    if not isinstance(runtime_dependencies, dict):
+        raise ValueError("runtimeDependencies must be an object")
+    for dep_id, source in runtime_dependencies.items():
+        if not dep_id or not isinstance(source, dict) or source.get("kind") != "git":
+            raise ValueError(f"{dep_id}: unsupported runtime dependency contract")
+        commit = str(source.get("commit") or "")
+        if len(commit) != 40 or any(ch not in "0123456789abcdef" for ch in commit.lower()):
+            raise ValueError(f"{dep_id}: runtime dependency is not pinned to a 40-character commit")
+    runtime_packages = data.get("runtimePackages") or {}
+    if not isinstance(runtime_packages, dict):
+        raise ValueError("runtimePackages must be an object")
+    for package_id, source in runtime_packages.items():
+        if not package_id or not isinstance(source, dict) or source.get("kind") != "archive":
+            raise ValueError(f"{package_id}: unsupported runtime package contract")
+        digest = str(source.get("sha256") or "")
+        if len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest.lower()):
+            raise ValueError(f"{package_id}: runtime package has no SHA-256 pin")
     return data
 
 
@@ -89,6 +109,14 @@ def require_network(allow_network: bool, what: str) -> None:
             f"{what} requires external network access; rerun prepare with "
             "--allow-network only after explicit approval"
         )
+
+
+def download(url: str, destination: Path) -> None:
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "amigaopenttd-source-preparer/1"}
+    )
+    with urllib.request.urlopen(request) as response, destination.open("wb") as output:
+        shutil.copyfileobj(response, output)
 
 
 def submodules_need_update(dest: Path) -> bool:
@@ -142,6 +170,18 @@ def _safe_tar_members(tf: tarfile.TarFile):
     return members
 
 
+def _safe_zip_infos(zf: zipfile.ZipFile):
+    infos = zf.infolist()
+    for info in infos:
+        path = PurePosixPath(info.filename)
+        mode = (info.external_attr >> 16) & 0o170000
+        if path.is_absolute() or ".." in path.parts:
+            raise ValueError(f"unsafe archive path: {info.filename}")
+        if mode == stat.S_IFLNK:
+            raise ValueError(f"unsupported archive member type: {info.filename}")
+    return infos
+
+
 def prepare_archive(
     game_id: str, source: dict, cache: Path, dest: Path, *, allow_network: bool
 ) -> dict:
@@ -153,7 +193,7 @@ def prepare_archive(
         require_network(allow_network, f"{game_id}: source archive fetch")
         tmp = archive.with_suffix(archive.suffix + ".part")
         tmp.unlink(missing_ok=True)
-        urllib.request.urlretrieve(str(source["url"]), tmp)
+        download(str(source["url"]), tmp)
         got = sha256_file(tmp).lower()
         if got != expected:
             tmp.unlink(missing_ok=True)
@@ -162,9 +202,21 @@ def prepare_archive(
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive, "r:*") as tf:
-        members = _safe_tar_members(tf)
-        tf.extractall(dest, members=members, filter="data")
+    if zipfile.is_zipfile(archive):
+        with zipfile.ZipFile(archive) as zf:
+            infos = _safe_zip_infos(zf)
+            for info in infos:
+                target = dest / PurePosixPath(info.filename)
+                if info.is_dir():
+                    target.mkdir(parents=True, exist_ok=True)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as src, target.open("wb") as dst:
+                    shutil.copyfileobj(src, dst)
+    else:
+        with tarfile.open(archive, "r:*") as tf:
+            members = _safe_tar_members(tf)
+            tf.extractall(dest, members=members, filter="data")
     children = [p for p in dest.iterdir()]
     source_root = dest
     if len(children) == 1 and children[0].is_dir():
@@ -194,7 +246,7 @@ def prepare_release_data(
         require_network(allow_network, f"{game_id}: release-data fetch")
         tmp = archive.with_suffix(".part")
         tmp.unlink(missing_ok=True)
-        urllib.request.urlretrieve(url, tmp)
+        download(url, tmp)
         got = sha256_file(tmp).lower()
         if got != expected:
             tmp.unlink(missing_ok=True)
@@ -231,12 +283,24 @@ def prepare(root: Path, catalog: dict, game: str, *, allow_network: bool) -> dic
         "version": 1,
         "ports": {},
         "dependencies": {},
+        "runtimeDependencies": {},
+        "runtimePackages": {},
         "catalog": str(root / CATALOG_REL),
     }
     for dep_id, source in sorted((catalog.get("buildDependencies") or {}).items()):
         dest = work / "dependencies" / dep_id
         result["dependencies"][dep_id] = prepare_git(
             dep_id, source, dest, allow_network=allow_network
+        )
+    for dep_id, source in sorted((catalog.get("runtimeDependencies") or {}).items()):
+        dest = work / "runtime-dependencies" / dep_id
+        result["runtimeDependencies"][dep_id] = prepare_git(
+            dep_id, source, dest, allow_network=allow_network
+        )
+    for package_id, source in sorted((catalog.get("runtimePackages") or {}).items()):
+        dest = work / "runtime-packages" / package_id
+        result["runtimePackages"][package_id] = prepare_archive(
+            package_id, source, cache, dest, allow_network=allow_network
         )
     for game_id, spec in selected_ports(catalog, game):
         source = spec["source"]
@@ -262,6 +326,14 @@ def prepare(root: Path, catalog: dict, game: str, *, allow_network: bool) -> dic
                 result["ports"] = {**old["ports"], **result["ports"]}
                 if isinstance(old.get("dependencies"), dict):
                     result["dependencies"] = {**old["dependencies"], **result["dependencies"]}
+                if isinstance(old.get("runtimeDependencies"), dict):
+                    result["runtimeDependencies"] = {
+                        **old["runtimeDependencies"], **result["runtimeDependencies"]
+                    }
+                if isinstance(old.get("runtimePackages"), dict):
+                    result["runtimePackages"] = {
+                        **old["runtimePackages"], **result["runtimePackages"]
+                    }
         except (OSError, json.JSONDecodeError):
             pass
     marker.parent.mkdir(parents=True, exist_ok=True)
@@ -278,6 +350,8 @@ def verify(root: Path, catalog: dict, game: str) -> dict:
         raise ValueError("prepared marker is invalid")
     checked = {}
     checked_dependencies = {}
+    checked_runtime_dependencies = {}
+    checked_runtime_packages = {}
     for dep_id, source in sorted((catalog.get("buildDependencies") or {}).items()):
         item = (data.get("dependencies") or {}).get(dep_id)
         if not isinstance(item, dict):
@@ -289,6 +363,31 @@ def verify(root: Path, catalog: dict, game: str) -> dict:
         if got != source["commit"].lower():
             raise ValueError(f"{dep_id}: prepared dependency commit changed: {got}")
         checked_dependencies[dep_id] = {"commit": got, "path": str(path)}
+    for dep_id, source in sorted((catalog.get("runtimeDependencies") or {}).items()):
+        item = (data.get("runtimeDependencies") or {}).get(dep_id)
+        if not isinstance(item, dict):
+            raise ValueError(f"{dep_id}: runtime dependency not prepared")
+        path = Path(str(item.get("path") or ""))
+        if not path.is_dir():
+            raise ValueError(f"{dep_id}: prepared runtime dependency path is missing")
+        got = git_head(path).lower()
+        if got != source["commit"].lower():
+            raise ValueError(f"{dep_id}: prepared runtime dependency commit changed: {got}")
+        checked_runtime_dependencies[dep_id] = {"commit": got, "path": str(path)}
+    for package_id, source in sorted((catalog.get("runtimePackages") or {}).items()):
+        item = (data.get("runtimePackages") or {}).get(package_id)
+        if not isinstance(item, dict):
+            raise ValueError(f"{package_id}: runtime package not prepared")
+        path = Path(str(item.get("path") or ""))
+        archive = Path(str(item.get("archive") or ""))
+        if not path.is_dir() or not archive.is_file():
+            raise ValueError(f"{package_id}: prepared runtime package is missing")
+        got = sha256_file(archive).lower()
+        if got != source["sha256"].lower():
+            raise ValueError(f"{package_id}: prepared runtime package changed: {got}")
+        checked_runtime_packages[package_id] = {
+            "sha256": got, "path": str(path), "archive": str(archive)
+        }
     for game_id, spec in selected_ports(catalog, game):
         item = data["ports"].get(game_id)
         if not isinstance(item, dict):
@@ -320,7 +419,13 @@ def verify(root: Path, catalog: dict, game: str) -> dict:
             checked[game_id] = {
                 "sha256": got, "path": str(path), "archive": str(archive)
             }
-    return {"ok": True, "ports": checked, "dependencies": checked_dependencies}
+    return {
+        "ok": True,
+        "ports": checked,
+        "dependencies": checked_dependencies,
+        "runtimeDependencies": checked_runtime_dependencies,
+        "runtimePackages": checked_runtime_packages,
+    }
 
 
 def main(argv=None) -> int:
