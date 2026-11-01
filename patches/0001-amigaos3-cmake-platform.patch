@@ -1,0 +1,43 @@
+diff --git a/cmake/Options.cmake b/cmake/Options.cmake
+index f3f517f..b114381 100644
+--- a/cmake/Options.cmake
++++ b/cmake/Options.cmake
+@@ -16,6 +16,10 @@ function(set_directory_options)
+         set(DEFAULT_PERSONAL_DIR ".${BINARY_NAME}")
+         set(DEFAULT_SHARED_DIR "(not set)")
+         set(DEFAULT_GLOBAL_DIR "${CMAKE_INSTALL_FULL_DATADIR}/${BINARY_NAME}")
++    elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k")
++        set(DEFAULT_PERSONAL_DIR "PROGDIR:")
++        set(DEFAULT_SHARED_DIR "PROGDIR:")
++        set(DEFAULT_GLOBAL_DIR "PROGDIR:")
+     else()
+         message(FATAL_ERROR "Unknown OS found; please consider creating a Pull Request to add support for this OS.")
+     endif()
+diff --git a/cmake/CompileFlags.cmake b/cmake/CompileFlags.cmake
+index 93f6550..064b485 100644
+--- a/cmake/CompileFlags.cmake
++++ b/cmake/CompileFlags.cmake
+@@ -121,7 +121,7 @@ macro(set_compile_flags)
+         message(FATAL_ERROR "No warning flags are set for this compiler yet; please consider creating a Pull Request to add support for this compiler.")
+     endif()
+ 
+-    if(NOT WIN32 AND NOT HAIKU)
++    if(NOT WIN32 AND NOT HAIKU AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k"))
+         # rdynamic is used to get useful stack traces from crash reports.
+         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
+     endif()
+diff --git a/cmake/InstallAndPackage.cmake b/cmake/InstallAndPackage.cmake
+index 1372a42..8552c1a 100644
+--- a/cmake/InstallAndPackage.cmake
++++ b/cmake/InstallAndPackage.cmake
+@@ -257,6 +257,10 @@ elseif(UNIX)
+ 
+     set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-linux-${PLATFORM}-${CPACK_SYSTEM_NAME}")
+ 
++elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k")
++    set(CPACK_GENERATOR "ZIP")
++    set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-amigaos3-m68k")
++
+ else()
+     message(FATAL_ERROR "Unknown OS found for packaging; please consider creating a Pull Request to add support for this OS.")
+ endif()
