@@ -1,6 +1,6 @@
 # OpenTTD for AmigaOS 3.x
 
-Standalone AmigaChrome port repository for OpenTTD. Upstream is pinned to
+Standalone AmiCradle port repository for OpenTTD. Upstream is pinned to
 `d48d693d7ff09b643846e23a5f033cf3582ab27f`.
 
 ## Prepare and build
