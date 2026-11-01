@@ -5,7 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SRC=${OPENTTD_SRC:-"$ROOT/build/game-ports/sources/openttd"}
 OUT=${OUT:-"$ROOT/build/os3"}
 HOST_BUILD=${HOST_BUILD:-"$ROOT/build/first-pass"}
-STOVE=${STOVE:-"$HOME/AmigaChrome/stoves/os32-gcc16"}
+STOVE=${STOVE:-"$HOME/AmiCradle/stoves/os32-gcc16"}
 WORK="$OUT/source"
 
 [ -x "$STOVE/prefix/bin/m68k-amigaos-g++" ] || { echo "missing OpenAmigaGCC stove" >&2; exit 2; }
