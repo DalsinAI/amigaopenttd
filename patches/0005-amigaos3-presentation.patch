@@ -221,3 +221,21 @@ index b33a953..7a9867b 100644
  	try {
  		static std::mutex thread_startup_mutex;
  		std::lock_guard<std::mutex> lock(thread_startup_mutex);
+diff --git a/src/video/video_driver.cpp b/src/video/video_driver.cpp
+index 85cc2d5..8d31cd5 100644
+--- a/src/video/video_driver.cpp
++++ b/src/video/video_driver.cpp
+@@ -69,6 +69,13 @@ void VideoDriver::GameLoopPause()
+ {
+ 	/* If we are not called from the game-thread, ignore this request. */
+ 	if (std::this_thread::get_id() != this->game_thread.get_id()) return;
++#if defined(__amigaos__)
++	/* With no game thread, game_thread's id is the "no thread" id, and so is
++	 * this_thread's on AmigaOS (the main task is no pthread), so the test
++	 * above passes: then this would unlock a mutex nobody holds and wait for
++	 * ever on the next. There is nothing to pause without a game thread. */
++	if (!this->game_thread.joinable()) return;
++#endif
+ 
+ 	this->game_state_mutex.unlock();
+ 
