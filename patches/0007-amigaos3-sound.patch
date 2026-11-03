@@ -1,0 +1,42 @@
+diff --git a/src/framerate_gui.cpp b/src/framerate_gui.cpp
+index 03799df..3f84efa 100644
+--- a/src/framerate_gui.cpp
++++ b/src/framerate_gui.cpp
+@@ -262,10 +262,11 @@ static void AmigaPerformanceLog(TimingMeasurement now)
+ 	if (first == 0) first = next = now;
+ 	if (now < next) return;
+ 	next = now + interval;
+-	Debug(misc, 0, "perf {:.1f} s: game loop {:.1f}/s (wants {:.1f}), drawing {:.1f}/s, video {:.1f}/s, sound mixing {:.2f} ms",
++	Debug(misc, 0, "perf {:.1f} s: game loop {:.1f}/s (wants {:.1f}), drawing {:.1f}/s, video {:.1f}/s, sound {:.1f} buffers/s (wants {:.1f}), mixing {:.2f} ms a buffer",
+ 		(double)(now - first) / TIMESTAMP_PRECISION,
+ 		_pf_data[PFE_GAMELOOP].GetRate(), _pf_data[PFE_GAMELOOP].expected_rate,
+ 		_pf_data[PFE_DRAWING].GetRate(), _pf_data[PFE_VIDEO].GetRate(),
++		_pf_data[PFE_SOUND].GetRate(), _pf_data[PFE_SOUND].expected_rate,
+ 		_pf_data[PFE_SOUND].GetAverageDurationMilliseconds(NUM_FRAMERATE_POINTS));
+ }
+ #endif
+diff --git a/src/sound/sdl2_s.cpp b/src/sound/sdl2_s.cpp
+index 7f2ed4d..58148ef 100644
+--- a/src/sound/sdl2_s.cpp
++++ b/src/sound/sdl2_s.cpp
+@@ -12,6 +12,7 @@
+ #include "../stdafx.h"
+ 
+ #include "../mixer.h"
++#include "../debug.h"
+ #include "sdl_s.h"
+ #include <SDL.h>
+ 
+@@ -50,6 +51,12 @@ std::optional<std::string_view> SoundDriver_SDL::Start(const StringList &parm)
+ 	spec.samples = GetDriverParamInt(parm, "samples", 1024);
+ 	spec.callback = fill_sound_buffer;
+ 	SDL_AudioDeviceID dev = SDL_OpenAudioDevice(nullptr, 0, &spec, &spec_actual, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
++#if defined(__amigaos__)
++	/* AmigaOS: which of SDL's audio back ends (AHI or Paula) and what it gave. */
++	if (dev == 0) return SDL_GetError();
++	Debug(driver, 1, "SDL audio \"{}\": {} Hz, {} channels, {} samples a buffer (asked {} Hz, {} samples)",
++		SDL_GetCurrentAudioDriver(), spec_actual.freq, spec_actual.channels, spec_actual.samples, spec.freq, spec.samples);
++#endif
+ 	MxInitialize(spec_actual.freq);
+ 	SDL_PauseAudioDevice(dev, 0);
+ 	return std::nullopt;
