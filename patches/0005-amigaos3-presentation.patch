@@ -79,10 +79,10 @@ index c1de3c5..7c5fae2 100644
  
  /** Set the rate of expected cycles per second of a performance element. */
 diff --git a/src/os/unix/unix_main.cpp b/src/os/unix/unix_main.cpp
-index 93b57fa..e956939 100644
+index 93b57fa..7cc7b5b 100644
 --- a/src/os/unix/unix_main.cpp
 +++ b/src/os/unix/unix_main.cpp
-@@ -18,6 +18,12 @@
+@@ -18,8 +18,19 @@
  
  #include "../../safeguards.h"
  
@@ -94,7 +94,14 @@ index 93b57fa..e956939 100644
 +
  int CDECL main(int argc, char *argv[])
  {
++#if defined(__amigaos__)
++	/* libnix writes stderr a character at a time, which costs a second a
++	 * line of log on a file or a console: write it a line at a time. */
++	setvbuf(stderr, nullptr, _IOLBF, 1024);
++#endif
  	/* Make sure our arguments contain only valid UTF-8 characters. */
+ 	std::vector<std::string_view> params;
+ 	for (int i = 0; i < argc; ++i) {
 diff --git a/src/table/settings/misc_settings.ini b/src/table/settings/misc_settings.ini
 index 86b15c3..fe5c89f 100644
 --- a/src/table/settings/misc_settings.ini
