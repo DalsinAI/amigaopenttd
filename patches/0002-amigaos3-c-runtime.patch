@@ -109,6 +109,21 @@ index 4b1ef6c..f9beee7 100644
  
  	if (_gamelog.TestEmergency()) {
  		fmt::print("A serious fault condition occurred in the game. The game will shut down.\n");
+diff --git a/src/os/unix/library_loader_unix.cpp b/src/os/unix/library_loader_unix.cpp
+index 5960805..798382b 100644
+--- a/src/os/unix/library_loader_unix.cpp
++++ b/src/os/unix/library_loader_unix.cpp
+@@ -15,8 +15,8 @@
+ 
+ #include "../../safeguards.h"
+ 
+-/* Emscripten cannot dynamically load other files. */
+-#if defined(__EMSCRIPTEN__)
++/* Emscripten cannot dynamically load other files; nor, here, can AmigaOS. */
++#if defined(__EMSCRIPTEN__) || defined(__amigaos__)
+ 
+ void *LibraryLoader::OpenLibrary(const std::string &)
+ {
 diff --git a/src/stdafx.h b/src/stdafx.h
 index f264bf6..fb7603a 100644
 --- a/src/stdafx.h

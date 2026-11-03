@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 2891bee..989970c 100644
+index 2891bee..93a2764 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -54,7 +54,7 @@ add_custom_target(tools)
@@ -29,6 +29,15 @@ index 2891bee..989970c 100644
      set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE True)
      set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL True)
      set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO True)
+@@ -307,7 +307,7 @@ link_package(ZLIB TARGET ZLIB::ZLIB ENCOURAGED)
+ link_package(LIBLZMA TARGET LibLZMA::LibLZMA ENCOURAGED)
+ link_package(LZO)
+ 
+-if(NOT WIN32 AND NOT EMSCRIPTEN)
++if(NOT WIN32 AND NOT EMSCRIPTEN AND NOT AMIGAOS3)
+     link_package(CURL ENCOURAGED)
+     target_link_libraries(openttd_lib ${CMAKE_DL_LIBS})
+ endif()
 diff --git a/cmake/CompileFlags.cmake b/cmake/CompileFlags.cmake
 index 1f613e9..bde6eb5 100644
 --- a/cmake/CompileFlags.cmake
