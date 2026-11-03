@@ -15,6 +15,64 @@ index 7d585b0..11382bc 100644
  }
  
  /**
+diff --git a/src/os/unix/amiga.cpp b/src/os/unix/amiga.cpp
+new file mode 100644
+index 0000000..915fcd7
+--- /dev/null
++++ b/src/os/unix/amiga.cpp
+@@ -0,0 +1,52 @@
++/*
++ * This file is part of OpenTTD.
++ * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
++ * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <https://www.gnu.org/licenses/old-licenses/gpl-2.0>.
++ */
++
++/**
++ * @file amiga.cpp What libnix, the AmigaOS 3.x C runtime, declares but has not got.
++ *
++ * statvfs(): the C++ library's std::filesystem::space() calls it, and libnix
++ * declares it without having it. Here it asks AmigaDOS (Info()) about the
++ * volume a path is on.
++ */
++
++#include <errno.h>
++#include <string.h>
++#include <sys/statvfs.h>
++#include <exec/memory.h>
++#include <dos/dos.h>
++#include <proto/exec.h>
++#include <proto/dos.h>
++
++int statvfs(const char *__restrict path, struct statvfs *__restrict buf)
++{
++	BPTR lock = Lock(const_cast<STRPTR>(path), ACCESS_READ);
++	if (lock == 0) {
++		errno = ENOENT;
++		return -1;
++	}
++
++	/* InfoData must be on a longword boundary: allocate it. */
++	struct InfoData *info = static_cast<struct InfoData *>(AllocVec(sizeof(struct InfoData), MEMF_ANY | MEMF_CLEAR));
++	LONG ok = (info != nullptr) ? Info(lock, info) : DOSFALSE;
++	UnLock(lock);
++	if (!ok) {
++		FreeVec(info);
++		errno = EIO;
++		return -1;
++	}
++
++	memset(buf, 0, sizeof(*buf));
++	buf->f_bsize = info->id_BytesPerBlock;
++	buf->f_frsize = info->id_BytesPerBlock;
++	buf->f_blocks = info->id_NumBlocks;
++	buf->f_bfree = info->id_NumBlocks - info->id_NumBlocksUsed;
++	buf->f_bavail = buf->f_bfree;
++	buf->f_namemax = 107;
++	if (info->id_DiskState == ID_WRITE_PROTECTED) buf->f_flag = 1; // ST_RDONLY
++	FreeVec(info);
++	return 0;
++}
 diff --git a/src/os/unix/crashlog_unix.cpp b/src/os/unix/crashlog_unix.cpp
 index 4b1ef6c..f9beee7 100644
 --- a/src/os/unix/crashlog_unix.cpp

@@ -64,4 +64,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+# std::atomic of 1 and 4 bytes are library calls on the 68k (libatomic);
+# at the end of every link line, after the objects that need them.
+set(CMAKE_C_STANDARD_LIBRARIES "-latomic" CACHE STRING "")
+set(CMAKE_CXX_STANDARD_LIBRARIES "-latomic" CACHE STRING "")
 set(THREADS_PREFER_PTHREAD_FLAG ON)

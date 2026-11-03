@@ -82,10 +82,10 @@ index da2d172..638fac8 100644
          message(FATAL_ERROR "Unknown OS found; please consider creating a Pull Request to add support for this OS.")
      endif()
 diff --git a/src/os/unix/CMakeLists.txt b/src/os/unix/CMakeLists.txt
-index d5cdcfd..200349a 100644
+index d5cdcfd..8afa0bb 100644
 --- a/src/os/unix/CMakeLists.txt
 +++ b/src/os/unix/CMakeLists.txt
-@@ -1,13 +1,13 @@
+@@ -1,13 +1,18 @@
  add_files(
      crashlog_unix.cpp
      survey_unix.cpp
@@ -98,10 +98,15 @@ index d5cdcfd..200349a 100644
      unix.cpp
 -    CONDITION UNIX
 +    CONDITION UNIX OR AMIGAOS3
++)
++
++add_files(
++    amiga.cpp
++    CONDITION AMIGAOS3
  )
  
  add_files(
-@@ -16,6 +16,6 @@ add_files(
+@@ -16,6 +21,6 @@ add_files(
      CONDITION Fontconfig_FOUND
  )
  
