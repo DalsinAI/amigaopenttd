@@ -122,7 +122,9 @@ def fetch(name, url, sha):
     if not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest() != sha:
         print(f"fetch {url}", file=sys.stderr)
         part = dest.with_suffix(dest.suffix + ".part")
-        with urllib.request.urlopen(url, timeout=120) as r, open(part, "wb") as f:
+        # the CDN refuses Python's own user agent
+        req = urllib.request.Request(url, headers={"User-Agent": "curl/8.5.0"})
+        with urllib.request.urlopen(req, timeout=120) as r, open(part, "wb") as f:
             while chunk := r.read(1 << 20):
                 f.write(chunk)
         got = hashlib.sha256(part.read_bytes()).hexdigest()
