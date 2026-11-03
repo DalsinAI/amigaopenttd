@@ -32,7 +32,7 @@
     "opensfx": {
       "kind": "archive",
       "version": "1.0.3",
-      "license": "CC-BY-SA-3.0",
+      "license": "CC-BY-SA-3.0 (the sounds); GPL-2.0-or-later or CDDL-1.1 (the other files)",
       "url": "https://cdn.openttd.org/opensfx-releases/1.0.3/opensfx-1.0.3-all.zip",
       "filename": "opensfx-1.0.3-all.zip",
       "sha256": "e0a218b7dd9438e701503b0f84c25a97c1c11b7c2f025323fb19d6db16ef3759"
@@ -53,10 +53,17 @@
       "source": {
         "kind": "git",
         "url": "https://github.com/OpenTTD/OpenTTD.git",
-        "commit": "d48d693d7ff09b643846e23a5f033cf3582ab27f",
+        "commit": "14ec60f248547d4d062a1160f0fc26d742319888",
         "submodules": false
       },
-      "contentPolicy": "Preserve upstream licensing and third-party notices. Ship the pinned OpenGFX/OpenSFX/OpenMSX sets by default. Original Transport Tycoon Deluxe data may only be imported from user-owned media and must never be redistributed."
+      "release": {
+        "kind": "archive",
+        "version": "15.3",
+        "url": "https://cdn.openttd.org/openttd-releases/15.3/openttd-15.3-source.tar.xz",
+        "filename": "openttd-15.3-source.tar.xz",
+        "sha256": "5ea21eea7d59c78a42071924ac18c6bc0116088f2e96b14cfee9369175973be7"
+      },
+      "contentPolicy": "Preserve upstream licensing and third-party notices. Ship the pinned OpenGFX and OpenSFX sets by default; OpenMSX stays pinned but is not shipped while the Amiga build has no music driver. Original Transport Tycoon Deluxe data may only be imported from user-owned media and must never be redistributed."
     }
   }
 }
