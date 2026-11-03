@@ -309,3 +309,58 @@ index 85cc2d5..8d31cd5 100644
  
  	this->game_state_mutex.unlock();
  
+diff --git a/src/widget.cpp b/src/widget.cpp
+index daf0172..2597afc 100644
+--- a/src/widget.cpp
++++ b/src/widget.cpp
+@@ -2750,32 +2750,37 @@ NWidgetLeaf::NWidgetLeaf(WidgetType tp, Colours colour, WidgetID index, const Wi
+ 			this->SetToolTip(STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS);
+ 			break;
+ 
++		/* The title bar buttons keep the shape of their unscaled size. min_x and
++		 * min_y are still 0 here (SetMinimalSize() sets the unscaled ones), and
++		 * 0/0 gave a NaN aspect ratio: x86-64 turns uint(NaN * height) into 0,
++		 * the 68k FPU into 2^31, so on AmigaOS every window with a close box
++		 * was 2^31 pixels wide and opened off the screen. */
+ 		case WWT_STICKYBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_STICKYBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_STICKY);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_SHADEBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_SHADEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_SHADE);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DEBUGBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_DEBUGBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_DEBUG);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DEFSIZEBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_DEFSIZEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_DEFSIZE);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_RESIZEBOX:
+@@ -2789,7 +2794,7 @@ NWidgetLeaf::NWidgetLeaf(WidgetType tp, Colours colour, WidgetID index, const Wi
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_CLOSEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_CLOSE_WINDOW);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DROPDOWN:
