@@ -206,6 +206,12 @@ EXE="$WORK/cross/openttd"
 [ -f "$EXE" ] || { echo "no executable: see build.log"; exit 2; }
 [ "$(od -An -tx1 -N4 "$EXE" | tr -d ' \n')" = "000003f3" ] || { echo "not an Amiga HUNK executable"; exit 2; }
 
+# the program's symbols, for reading a stuck or crashed task's stack in a lab
+# (tests/lab TaskPeek prints "hunk N + offset"): sorted, xz-compressed
+"$P/bin/m68k-amigaos-objdump" -h "$EXE" > "$OUT/openttd.sections"
+"$P/bin/m68k-amigaos-nm" -n -C --defined-only "$EXE" | xz -9 > "$OUT/openttd.map.xz"
+command -v ccache >/dev/null 2>&1 && echo "ccache: $(command -v ccache)" || echo "ccache: none"
+
 # the drawer: the program, stripped of its symbols, and the licence
 D="$OUT/OpenTTD"
 mkdir -p "$D"
