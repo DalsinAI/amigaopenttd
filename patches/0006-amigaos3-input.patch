@@ -43,7 +43,7 @@ index e31afce..5c2c77e 100644
  		case SDL_MOUSEMOTION: {
  			int32_t x = ev.motion.x;
 diff --git a/src/window.cpp b/src/window.cpp
-index ea6dc5b..70b8566 100644
+index ea6dc5b..3d5b3c0 100644
 --- a/src/window.cpp
 +++ b/src/window.cpp
 @@ -644,6 +644,9 @@ static void DispatchLeftClickEvent(Window *w, int x, int y, int click_count)
@@ -56,3 +56,13 @@ index ea6dc5b..70b8566 100644
  
  	/* Clicked on a widget that is not disabled.
  	 * So unless the clicked widget is the caption bar, change focus to this widget.
+@@ -1814,6 +1817,9 @@ void Window::FinishInitNested(WindowNumber window_number)
+ 	Point pt = this->OnInitialPosition(this->nested_root->smallest_x, this->nested_root->smallest_y, window_number);
+ 	this->InitializePositionSize(pt.x, pt.y, this->nested_root->smallest_x, this->nested_root->smallest_y);
+ 	this->FindWindowPlacementAndResize(this->window_desc.GetDefaultWidth(), this->window_desc.GetDefaultHeight(), true);
++#if defined(__amigaos__)
++	Debug(misc, 2, "window: class {} opened at {},{}, {}x{} (smallest {}x{})", to_underlying(this->window_class), this->left, this->top, this->width, this->height, this->nested_root->smallest_x, this->nested_root->smallest_y);
++#endif
+ }
+ 
+ /**
