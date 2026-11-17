@@ -1,10 +1,10 @@
-; $VER: Install-OpenTTD 15.3-amigaos3-rc1 (17.11.2026)
+; $VER: Install-OpenTTD 15.3-amigaos3-rc2 (17.11.2026)
 ; The Amiga Installer script for OpenTTD, an AmiCradle game port.
 ; Made by amicradle scripts/ports/port_installer.py: change the spec, not this file.
 ; Run it from its icon, beside the OpenTTD drawer where the archive was unpacked.
 
 (set @app-name "OpenTTD")
-(set #version "15.3-amigaos3-rc1")
+(set #version "15.3-amigaos3-rc2")
 (set #drawer "OpenTTD")
 (set #program "openttd")
 (set #space 58594)  ; KB
@@ -30,7 +30,7 @@
 (if (<> (exists (tackon #from #program) (noreq)) 1)
     (abort "The OpenTTD drawer has no openttd in it. Unpack the whole archive again."))
 
-(welcome "This installs OpenTTD 15.3-amigaos3-rc1 for AmigaOS 3.2 on a 68040, 68060 or 68080 with an FPU.")
+(welcome "This installs OpenTTD 15.3-amigaos3-rc2 for AmigaOS 3.2 on a 68040, 68060 or 68080 with an FPU.")
 
 ; where: the parent drawer
 (set #default
@@ -247,7 +247,7 @@
 (complete 100)
 (if @pretend
     (message (cat "Pretend: nothing was copied or changed. OpenTTD would have gone in " #dest "."))
-    (message (cat "OpenTTD 15.3-amigaos3-rc1 is installed in " #dest "."
+    (message (cat "OpenTTD 15.3-amigaos3-rc2 is installed in " #dest "."
                   "\n\nTo start it, open the OpenTTD drawer and double-click the openttd icon."
                   (if (= #kept "") "" (cat "\n\nLeft as they were: " #kept "."))
                   (if (= #later "") "" (cat "\n\nStill to add to the drawer: " #later ". Run Install-OpenTTD again to fetch or copy it.")))))
