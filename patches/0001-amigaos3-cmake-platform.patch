@@ -1,8 +1,76 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2891bee..93a2764 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -54,7 +54,7 @@ add_custom_target(tools)
+ include(CompileFlags)
+ compile_flags()
+ 
+-if(APPLE OR UNIX)
++if(APPLE OR UNIX OR AMIGAOS3)
+     add_definitions(-DUNIX)
+ endif()
+ 
+@@ -181,7 +181,7 @@ check_ipo_supported(RESULT IPO_FOUND)
+ 
+ show_options()
+ 
+-if(UNIX AND NOT APPLE AND NOT OPTION_DEDICATED)
++if((UNIX OR AMIGAOS3) AND NOT APPLE AND NOT OPTION_DEDICATED)
+     if(NOT SDL2_FOUND AND NOT ALLEGRO_FOUND)
+         message(FATAL_ERROR "SDL2 or Allegro is required for this platform")
+     endif()
+@@ -294,7 +294,7 @@ if(HAIKU)
+     target_link_libraries(openttd_lib "be" "network" "midi")
+ endif()
+ 
+-if(IPO_FOUND)
++if(IPO_FOUND AND NOT AMIGAOS3)
+     set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE True)
+     set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL True)
+     set_target_properties(openttd PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO True)
+@@ -307,7 +307,7 @@ link_package(ZLIB TARGET ZLIB::ZLIB ENCOURAGED)
+ link_package(LIBLZMA TARGET LibLZMA::LibLZMA ENCOURAGED)
+ link_package(LZO)
+ 
+-if(NOT WIN32 AND NOT EMSCRIPTEN)
++if(NOT WIN32 AND NOT EMSCRIPTEN AND NOT AMIGAOS3)
+     link_package(CURL ENCOURAGED)
+     target_link_libraries(openttd_lib ${CMAKE_DL_LIBS})
+ endif()
+diff --git a/cmake/CompileFlags.cmake b/cmake/CompileFlags.cmake
+index 1f613e9..bde6eb5 100644
+--- a/cmake/CompileFlags.cmake
++++ b/cmake/CompileFlags.cmake
+@@ -149,7 +149,7 @@ macro(compile_flags)
+         message(FATAL_ERROR "No warning flags are set for this compiler yet; please consider creating a Pull Request to add support for this compiler.")
+     endif()
+ 
+-    if(NOT WIN32 AND NOT HAIKU)
++    if(NOT WIN32 AND NOT HAIKU AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k"))
+         # rdynamic is used to get useful stack traces from crash reports.
+         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
+     endif()
+diff --git a/cmake/InstallAndPackage.cmake b/cmake/InstallAndPackage.cmake
+index 78c10a1..82ee41f 100644
+--- a/cmake/InstallAndPackage.cmake
++++ b/cmake/InstallAndPackage.cmake
+@@ -239,6 +239,10 @@ elseif(UNIX)
+ 
+     set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-linux-${PLATFORM}-${CPACK_SYSTEM_NAME}")
+ 
++elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k")
++    set(CPACK_GENERATOR "ZIP")
++    set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-amigaos3-m68k")
++
+ else()
+     message(FATAL_ERROR "Unknown OS found for packaging; please consider creating a Pull Request to add support for this OS.")
+ endif()
 diff --git a/cmake/Options.cmake b/cmake/Options.cmake
-index f3f517f..b114381 100644
+index da2d172..638fac8 100644
 --- a/cmake/Options.cmake
 +++ b/cmake/Options.cmake
-@@ -16,6 +16,10 @@ function(set_directory_options)
+@@ -17,6 +17,10 @@ function(set_directory_options)
          set(DEFAULT_PERSONAL_DIR ".${BINARY_NAME}")
          set(DEFAULT_SHARED_DIR "(not set)")
          set(DEFAULT_GLOBAL_DIR "${CMAKE_INSTALL_FULL_DATADIR}/${BINARY_NAME}")
@@ -13,31 +81,36 @@ index f3f517f..b114381 100644
      else()
          message(FATAL_ERROR "Unknown OS found; please consider creating a Pull Request to add support for this OS.")
      endif()
-diff --git a/cmake/CompileFlags.cmake b/cmake/CompileFlags.cmake
-index 93f6550..064b485 100644
---- a/cmake/CompileFlags.cmake
-+++ b/cmake/CompileFlags.cmake
-@@ -121,7 +121,7 @@ macro(set_compile_flags)
-         message(FATAL_ERROR "No warning flags are set for this compiler yet; please consider creating a Pull Request to add support for this compiler.")
-     endif()
+diff --git a/src/os/unix/CMakeLists.txt b/src/os/unix/CMakeLists.txt
+index d5cdcfd..8afa0bb 100644
+--- a/src/os/unix/CMakeLists.txt
++++ b/src/os/unix/CMakeLists.txt
+@@ -1,13 +1,18 @@
+ add_files(
+     crashlog_unix.cpp
+     survey_unix.cpp
+-    CONDITION UNIX AND NOT APPLE
++    CONDITION UNIX AND NOT APPLE OR AMIGAOS3
+ )
  
--    if(NOT WIN32 AND NOT HAIKU)
-+    if(NOT WIN32 AND NOT HAIKU AND NOT (CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k"))
-         # rdynamic is used to get useful stack traces from crash reports.
-         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
-     endif()
-diff --git a/cmake/InstallAndPackage.cmake b/cmake/InstallAndPackage.cmake
-index 1372a42..8552c1a 100644
---- a/cmake/InstallAndPackage.cmake
-+++ b/cmake/InstallAndPackage.cmake
-@@ -257,6 +257,10 @@ elseif(UNIX)
- 
-     set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-linux-${PLATFORM}-${CPACK_SYSTEM_NAME}")
- 
-+elseif(CMAKE_SYSTEM_NAME STREQUAL "Generic" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "m68k")
-+    set(CPACK_GENERATOR "ZIP")
-+    set(CPACK_PACKAGE_FILE_NAME "openttd-#CPACK_PACKAGE_VERSION#-amigaos3-m68k")
+ add_files(
+     library_loader_unix.cpp
+     unix.cpp
+-    CONDITION UNIX
++    CONDITION UNIX OR AMIGAOS3
++)
 +
- else()
-     message(FATAL_ERROR "Unknown OS found for packaging; please consider creating a Pull Request to add support for this OS.")
++add_files(
++    amiga.cpp
++    CONDITION AMIGAOS3
+ )
+ 
+ add_files(
+@@ -16,6 +21,6 @@ add_files(
+     CONDITION Fontconfig_FOUND
+ )
+ 
+-if(UNIX AND NOT APPLE)
++if((UNIX AND NOT APPLE) OR AMIGAOS3)
+     target_sources(openttd PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/unix_main.cpp)
  endif()

@@ -1,0 +1,187 @@
+diff --git a/src/network/core/core.cpp b/src/network/core/core.cpp
+index a0f2745..ba71667 100644
+--- a/src/network/core/core.cpp
++++ b/src/network/core/core.cpp
+@@ -35,7 +35,12 @@ bool NetworkCoreInitialize()
+ 	}
+ #endif /* _WIN32 */
+ 
++#if defined(__amigaos__)
++	Debug(net, 0, "Network play is not available on AmigaOS");
++	return false;
++#else
+ 	return true;
++#endif
+ }
+ 
+ /**
+diff --git a/src/network/core/os_abstraction.h b/src/network/core/os_abstraction.h
+index 5de279a..b55e0a3 100644
+--- a/src/network/core/os_abstraction.h
++++ b/src/network/core/os_abstraction.h
+@@ -59,8 +59,13 @@ typedef unsigned long in_addr_t;
+ #endif /* !(__MINGW32__ && __CYGWIN__) */
+ #endif /* _WIN32 */
+ 
++/* AmigaOS 3.x: no socket library, so no network play */
++#if defined(__amigaos__)
++#	include "os_amiga_nonet.h"
++#endif /* __amigaos__ */
++
+ /* UNIX stuff */
+-#if defined(UNIX)
++#if defined(UNIX) && !defined(__amigaos__)
+ #	if defined(OPENBSD) || defined(__NetBSD__)
+ #		define AI_ADDRCONFIG 0
+ #	endif
+diff --git a/src/network/core/os_amiga_nonet.h b/src/network/core/os_amiga_nonet.h
+new file mode 100644
+index 0000000..a3549cf
+--- /dev/null
++++ b/src/network/core/os_amiga_nonet.h
+@@ -0,0 +1,145 @@
++/*
++ * This file is part of OpenTTD.
++ * OpenTTD is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 2.
++ * OpenTTD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ * See the GNU General Public License for more details. You should have received a copy of the GNU General Public License along with OpenTTD. If not, see <http://www.gnu.org/licenses/>.
++ */
++
++/**
++ * @file os_amiga_nonet.h AmigaOS 3.x without network play.
++ *
++ * The AmigaOS 3.x port is single player: there is no socket library in the
++ * C runtime it links (libnix), so this file gives the network core the BSD
++ * socket types and constants it is written against, and calls that always
++ * fail (errno ENOSYS). NetworkCoreInitialize() reports the network as
++ * unavailable on AmigaOS, so the game never offers network play and these
++ * calls are not reached in normal use.
++ */
++
++#ifndef NETWORK_CORE_OS_AMIGA_NONET_H
++#define NETWORK_CORE_OS_AMIGA_NONET_H
++
++#include <errno.h>
++#include <stdint.h>
++#include <sys/types.h>
++#include <sys/time.h>
++#if __has_include(<sys/select.h>)
++#	include <sys/select.h>
++#endif
++
++#ifndef FD_SET
++/* No select() at all in this C runtime: a set big enough for the calls the
++ * network core makes, which fail anyway. */
++#	ifndef FD_SETSIZE
++#		define FD_SETSIZE 64
++#	endif
++struct AmigaNoNetFdSet { unsigned long bits[FD_SETSIZE / 32]; };
++#	define fd_set AmigaNoNetFdSet
++#	define FD_ZERO(set) ((void)((set)->bits[0] = 0, (set)->bits[1] = 0))
++#	define FD_SET(fd, set) ((void)((set)->bits[(fd) / 32] |= 1UL << ((fd) % 32)))
++#	define FD_ISSET(fd, set) (((set)->bits[(fd) / 32] & (1UL << ((fd) % 32))) != 0)
++#endif
++
++#define SOCKET int
++#define INVALID_SOCKET -1
++
++typedef uint32_t in_addr_t;
++typedef uint16_t in_port_t;
++typedef uint8_t sa_family_t;
++typedef int socklen_t;
++
++struct in_addr { in_addr_t s_addr; };
++struct in6_addr { uint8_t s6_addr[16]; };
++struct sockaddr { uint8_t sa_len; sa_family_t sa_family; char sa_data[14]; };
++struct sockaddr_in { uint8_t sin_len; sa_family_t sin_family; in_port_t sin_port; struct in_addr sin_addr; char sin_zero[8]; };
++struct sockaddr_in6 { uint8_t sin6_len; sa_family_t sin6_family; in_port_t sin6_port; uint32_t sin6_flowinfo; struct in6_addr sin6_addr; uint32_t sin6_scope_id; };
++struct sockaddr_storage { uint8_t ss_len; sa_family_t ss_family; char ss_pad[126]; };
++struct addrinfo {
++	int ai_flags, ai_family, ai_socktype, ai_protocol;
++	socklen_t ai_addrlen;
++	char *ai_canonname;
++	struct sockaddr *ai_addr;
++	struct addrinfo *ai_next;
++};
++struct ifaddrs {
++	struct ifaddrs *ifa_next;
++	char *ifa_name;
++	unsigned int ifa_flags;
++	struct sockaddr *ifa_addr, *ifa_netmask, *ifa_broadaddr;
++	void *ifa_data;
++};
++
++#define AF_UNSPEC 0
++#define AF_INET 2
++#define AF_INET6 28
++#define SOCK_STREAM 1
++#define SOCK_DGRAM 2
++#define IPPROTO_TCP 6
++#define IPPROTO_UDP 17
++#define IPPROTO_IPV6 41
++#define SOL_SOCKET 0xffff
++#define SO_REUSEADDR 0x0004
++#define SO_BROADCAST 0x0020
++#define SO_REUSEPORT 0x0200
++#define SO_ERROR 0x1007
++#define TCP_NODELAY 0x01
++#define IPV6_V6ONLY 27
++#define AI_PASSIVE 0x1
++#define AI_NUMERICHOST 0x4
++#define AI_ADDRCONFIG 0
++#define NI_NUMERICHOST 0x2
++#define NI_MAXHOST 1025
++#define EAI_FAIL 4
++#define IFF_BROADCAST 0x2
++#define IFF_LOOPBACK 0x8
++#ifndef INADDR_NONE
++#	define INADDR_NONE 0xffffffff
++#endif
++#ifndef INADDR_ANY
++#	define INADDR_ANY 0x00000000
++#endif
++#ifndef FIONBIO
++#	define FIONBIO 0x8004667e
++#endif
++
++/* The 68k is big-endian: network order is host order. */
++#ifndef htons
++#	define htons(x) ((uint16_t)(x))
++#	define ntohs(x) ((uint16_t)(x))
++#	define htonl(x) ((uint32_t)(x))
++#	define ntohl(x) ((uint32_t)(x))
++#endif
++
++/* Every call fails as "not implemented". */
++namespace AmigaNoNet {
++	inline int NoNetFail() { errno = ENOSYS; return -1; }
++	inline int socket(int, int, int) { return NoNetFail(); }
++	inline int connect(int, const struct sockaddr *, socklen_t) { return NoNetFail(); }
++	inline int bind(int, const struct sockaddr *, socklen_t) { return NoNetFail(); }
++	inline int listen(int, int) { return NoNetFail(); }
++	inline int accept(int, struct sockaddr *, socklen_t *) { return NoNetFail(); }
++	inline ssize_t send(int, const void *, size_t, int) { return NoNetFail(); }
++	inline ssize_t recv(int, void *, size_t, int) { return NoNetFail(); }
++	inline ssize_t sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_t) { return NoNetFail(); }
++	inline ssize_t recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *) { return NoNetFail(); }
++	inline int setsockopt(int, int, int, const void *, socklen_t) { return NoNetFail(); }
++	inline int getsockopt(int, int, int, void *, socklen_t *) { return NoNetFail(); }
++	inline int getsockname(int, struct sockaddr *, socklen_t *) { return NoNetFail(); }
++	inline int getpeername(int, struct sockaddr *, socklen_t *) { return NoNetFail(); }
++	inline int ioctl(int, unsigned long, void *) { return NoNetFail(); }
++	inline int closesocket(int) { return 0; }
++	inline int select(int, fd_set *, fd_set *, fd_set *, struct timeval *) { return NoNetFail(); }
++	inline int getaddrinfo(const char *, const char *, const struct addrinfo *, struct addrinfo **res) { if (res != nullptr) *res = nullptr; return EAI_FAIL; }
++	inline void freeaddrinfo(struct addrinfo *) {}
++	inline const char *gai_strerror(int) { return "network play is not available on AmigaOS"; }
++	inline int getnameinfo(const struct sockaddr *, socklen_t, char *host, socklen_t hostlen, char *, socklen_t, int) { if (host != nullptr && hostlen > 0) host[0] = '\0'; return EAI_FAIL; }
++	inline int getifaddrs(struct ifaddrs **ifap) { if (ifap != nullptr) *ifap = nullptr; return NoNetFail(); }
++	inline void freeifaddrs(struct ifaddrs *) {}
++}
++
++/* Found by the network core's unqualified calls. select() alone may also be
++ * declared by the C runtime's <sys/select.h>, so that one is renamed. */
++using namespace AmigaNoNet;
++#define select(...) AmigaNoNet::select(__VA_ARGS__)
++
++#endif /* NETWORK_CORE_OS_AMIGA_NONET_H */

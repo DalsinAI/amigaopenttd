@@ -1,0 +1,54 @@
+{
+  "upstream_version": "15.3",
+  "upstream_commit": "14ec60f248547d4d062a1160f0fc26d742319888",
+  "upstream_archive_sha256": "5ea21eea7d59c78a42071924ac18c6bc0116088f2e96b14cfee9369175973be7",
+  "repository_commit": "0fc5dbde35e47f01c2c7897e62c242e9a70f0c08",
+  "source_date_epoch": "1793696928",
+  "recipe": {
+    "build-amiga.sh": "52c96cc48a5d4c32fc8f2281df9c7d3ff5b9e9b594ef93567183206d7c7a42e1",
+    "toolchain/amigaos3-opengpu.cmake": "f4a20fa92a8f0289aacc618705453dcc157558fde90bb4309d46968d78f6e7ad"
+  },
+  "patches": {
+    "0001-amigaos3-cmake-platform.patch": "1c62e7e470ddaa1a2ad21285595b02851abf6cf89cbe2ef526eb37d42eedcd8c",
+    "0002-amigaos3-c-runtime.patch": "ecbc0df83e113780ff86ff07caa6e3004a83f91b74ce679b9b5107a0e3d7ce7a",
+    "0003-amigaos3-no-network.patch": "ae370aee74325cbbd3e5646318ca7beaadd8516403158ef341309dab3fd0a543",
+    "0004-amigaos3-progdir.patch": "5bca8341876521c8042e74e88e89f8da17da54b9e5abdf9bc152d682da862c88"
+  },
+  "compiler_release": "16.2.0-open5",
+  "compiler_archive_sha256": "unpublished",
+  "sdk_inputs": {
+    "lib/libSDL2.a": "215d6ea9a61c690274596009ae5e7c4d1c2b3ba8f0a70129d6557abdf4230397"
+  },
+  "base_sets": {
+    "opengfx": {
+      "version": "8.0",
+      "license": "GPL-2.0-only",
+      "sha256": "43a0c1dabf39cb865394f3a6cc36d4da5c10ecfaaf55652043104806810903be"
+    },
+    "opensfx": {
+      "version": "1.0.3",
+      "license": "CC-BY-SA-3.0 (the sounds); GPL-2.0-or-later or CDDL-1.1 (the other files)",
+      "sha256": "e0a218b7dd9438e701503b0f84c25a97c1c11b7c2f025323fb19d6db16ef3759"
+    }
+  },
+  "network": false,
+  "executable_sha256": "1614e28f25863f8b0732a4ceb78f7b5d435a13fb731e7969727ec480f6d6b0e2",
+  "executable_bytes": 16294244,
+  "unstripped_sha256": "6735fa591dd5f927bfd2578ee467686bee90da923d34a3a0c5e430a590d66d3f",
+  "unstripped_bytes": 17858428,
+  "data_files": 129,
+  "sha256sums_sha256": "439a2a77262f6e8bcabaa64ef0588876e7d3cb831daa6c78eca0563bdcd4a377",
+  "data_archive_sha256": "572a8fb2f313d5868e460202b2d4d8d4bde5a55372e86f3c6e8d2ffebf07e7da",
+  "data_archive_bytes": 33843200,
+  "untar_sha256": "2de6090b9ef982dd1137e2e596da348fde51d09bf76b9ef11c604bbac86c7b6d",
+  "scope": "Source build only; network play left out (no socket library); no runtime or release pass implied",
+  "compiler_files_sha256": {
+    "bin/m68k-amigaos-gcc": "b20d61e9dcd2defe093c0f562e96611e6f5ae3cb0588cf1063463fd913f189f6",
+    "bin/m68k-amigaos-g++": "7b9ec5f9efd56ec7ed79fd788f4b316e63b5337267aa145e2aee364bb6163089",
+    "bin/m68k-amigaos-as": "c93fe82ebda280d861ca65ab68fec2d64e63c89fd327a069bcf1c5928e295c46",
+    "bin/m68k-amigaos-ld": "c55353a0e0c7c9d55574c5cbd6c633c11b4357fb078d9615582ea313b0fcdf88",
+    "libexec/gcc/m68k-amigaos/16.2.0b/cc1": "d638cf066b6751a106e779a56f20c4b3ebfa62df30a2889f4767540477334399",
+    "libexec/gcc/m68k-amigaos/16.2.0b/cc1obj": "8dce717d9519b0592c5a9ed440da2aefed6e8de624b74e6c157e43c5215092e4",
+    "libexec/gcc/m68k-amigaos/16.2.0b/cc1plus": "8c3a0d1edbfb1514aae2fc35af2ac25b141924cb0637cfa5cbdbcda2878dd3a5"
+  }
+}

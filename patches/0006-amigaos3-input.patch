@@ -1,0 +1,68 @@
+diff --git a/src/video/sdl2_v.cpp b/src/video/sdl2_v.cpp
+index e31afce..5c2c77e 100644
+--- a/src/video/sdl2_v.cpp
++++ b/src/video/sdl2_v.cpp
+@@ -382,6 +382,39 @@ bool VideoDriver_SDL_Base::PollEvent()
+ 
+ 	if (!SDL_PollEvent(&ev)) return false;
+ 
++#if defined(__amigaos__)
++	/* AmigaOS: SetEnv OPENTTD_INPUT 1 and every key and mouse button SDL
++	 * gives the game goes into the log, with where the pointer is. */
++	static const bool log_input = [] {
++		extern std::string AmigaGetVar(const char *name);
++		return !AmigaGetVar("OPENTTD_INPUT").empty();
++	}();
++	if (log_input) {
++		switch (ev.type) {
++			case SDL_MOUSEBUTTONDOWN:
++			case SDL_MOUSEBUTTONUP:
++				Debug(driver, 0, "input: mouse button {} {} at {},{} (pointer {},{})", ev.button.button,
++					ev.type == SDL_MOUSEBUTTONDOWN ? "down" : "up", ev.button.x, ev.button.y, _cursor.pos.x, _cursor.pos.y);
++				break;
++			case SDL_MOUSEWHEEL:
++				Debug(driver, 0, "input: mouse wheel {},{}", ev.wheel.x, ev.wheel.y);
++				break;
++			case SDL_KEYDOWN:
++			case SDL_KEYUP:
++				Debug(driver, 0, "input: key {} {} (scancode {}, modifiers {:#x})", SDL_GetKeyName(ev.key.keysym.sym),
++					ev.type == SDL_KEYDOWN ? "down" : "up", static_cast<int>(ev.key.keysym.scancode), ev.key.keysym.mod);
++				break;
++			case SDL_TEXTINPUT:
++				Debug(driver, 0, "input: text \"{}\"", ev.text.text);
++				break;
++			case SDL_WINDOWEVENT:
++				Debug(driver, 0, "input: window event {}", ev.window.event);
++				break;
++			default: break;
++		}
++	}
++#endif
++
+ 	switch (ev.type) {
+ 		case SDL_MOUSEMOTION: {
+ 			int32_t x = ev.motion.x;
+diff --git a/src/window.cpp b/src/window.cpp
+index ea6dc5b..3d5b3c0 100644
+--- a/src/window.cpp
++++ b/src/window.cpp
+@@ -644,6 +644,9 @@ static void DispatchLeftClickEvent(Window *w, int x, int y, int click_count)
+ 	if (nw->IsDisabled()) return;
+ 
+ 	WidgetID widget_index = nw->GetIndex(); ///< Index of the widget
++#if defined(__amigaos__)
++	Debug(misc, 2, "click: window class {}, widget {} (type {:#x}), count {}", to_underlying(w->window_class), widget_index, to_underlying(widget_type), click_count);
++#endif
+ 
+ 	/* Clicked on a widget that is not disabled.
+ 	 * So unless the clicked widget is the caption bar, change focus to this widget.
+@@ -1814,6 +1817,9 @@ void Window::FinishInitNested(WindowNumber window_number)
+ 	Point pt = this->OnInitialPosition(this->nested_root->smallest_x, this->nested_root->smallest_y, window_number);
+ 	this->InitializePositionSize(pt.x, pt.y, this->nested_root->smallest_x, this->nested_root->smallest_y);
+ 	this->FindWindowPlacementAndResize(this->window_desc.GetDefaultWidth(), this->window_desc.GetDefaultHeight(), true);
++#if defined(__amigaos__)
++	Debug(misc, 2, "window: class {} opened at {},{}, {}x{} (smallest {}x{})", to_underlying(this->window_class), this->left, this->top, this->width, this->height, this->nested_root->smallest_x, this->nested_root->smallest_y);
++#endif
+ }
+ 
+ /**

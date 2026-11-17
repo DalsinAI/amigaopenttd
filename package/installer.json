@@ -1,0 +1,64 @@
+{
+  "name": "OpenTTD",
+  "version": "15.3-amigaos3-rc1",
+  "drawer": "OpenTTD",
+  "program": "openttd",
+  "cpu": "68040",
+  "fpu": true,
+  "space": 60000000,
+  "modules": [
+    "SDL2.module"
+  ],
+  "keep": [
+    "save",
+    "scenario",
+    "heightmap",
+    "screenshot",
+    "content_download",
+    "openttd.cfg",
+    "private.cfg",
+    "secrets.cfg"
+  ],
+  "parent": "Work:Games",
+  "badge": "../icons/art/openttd.png",
+  "data": [
+    {
+      "what": "your own Transport Tycoon Deluxe graphics, Windows edition",
+      "into": "baseset",
+      "files": [
+        "TRG1R.GRF",
+        "TRGCR.GRF",
+        "TRGHR.GRF",
+        "TRGIR.GRF",
+        "TRGTR.GRF"
+      ],
+      "import": true,
+      "optional": true,
+      "page": "https://wiki.openttd.org/en/Manual/Installation"
+    },
+    {
+      "what": "your own Transport Tycoon Deluxe graphics, DOS edition",
+      "into": "baseset",
+      "files": [
+        "TRG1.GRF",
+        "TRGC.GRF",
+        "TRGH.GRF",
+        "TRGI.GRF",
+        "TRGT.GRF"
+      ],
+      "import": true,
+      "optional": true,
+      "page": "https://wiki.openttd.org/en/Manual/Installation"
+    },
+    {
+      "what": "your own Transport Tycoon Deluxe sounds",
+      "into": "baseset",
+      "files": [
+        "SAMPLE.CAT"
+      ],
+      "import": true,
+      "optional": true,
+      "page": "https://wiki.openttd.org/en/Manual/Installation"
+    }
+  ]
+}

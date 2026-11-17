@@ -1,0 +1,62 @@
+OpenTTD for AmigaOS 3.x (AmiCradle)
+===================================
+
+Version @VERSION@.
+
+OpenTTD @UPSTREAM_VERSION@, the open source engine for Transport Tycoon
+Deluxe, built for a 68040 or 68060 with an FPU. It draws and plays sound
+through GFOpenGPU's SDL2.module. OpenGFX and OpenSFX, the free graphics
+and sound sets, are in the drawer, so the game plays as it is.
+
+Requirements
+------------
+
+- AmigaOS 3.2, a 68040 or 68060 with an FPU, an RTG screen.
+- GFOpenGPU's SDL2.module in LIBS:GFOpenGPU/.
+- 64 MB of free Fast RAM; about 60 MB of disk.
+
+Installing
+----------
+
+Unpack the archive anywhere (on AmiCradle: SYS:Utilities/OpenCompress x
+openttd-...lha RAM:), then double-click Install-OpenTTD beside the
+OpenTTD drawer. It asks where the game goes (Work:Games by default) and
+keeps your saves and settings when you install over an earlier copy.
+If you own Transport Tycoon Deluxe, the Installer can copy its graphics
+and sounds in from your own disks or install; they are not needed.
+
+Playing
+-------
+
+- Double-click the openttd icon. The game opens its own 640 x 480 screen
+  and runs in one task. New games default to 64 x 64 tile maps; bigger
+  maps work but are slow on a 68040.
+- Saves go to the drawer's save drawer, settings to openttd.cfg.
+- SetEnv OPENTTD_LOG 1 writes a log beside the game; OPENTTD_PERF 1 adds
+  a line of timings a second.
+
+What this build leaves out
+--------------------------
+
+- Network play, the server list and online content (no socket library).
+- Music: OpenTTD plays music only through MIDI players this platform has
+  not got. Sound effects play.
+- Compressed saves: saves are written uncompressed, and saves from other
+  builds in a compressed format do not load.
+
+This is a release candidate: it has been built, not yet played through
+on a lab. Report problems at https://github.com/DalsinAI/amigaopenttd.
+
+Build
+-----
+
+OpenTTD @UPSTREAM_VERSION@, commit
+@UPSTREAM_COMMIT@,
+built with GFOpenAmigaGCC @COMPILER_RELEASE@ from DalsinAI/amigaopenttd
+commit @REPOSITORY_COMMIT@.
+The program's SHA-256 is
+@EXECUTABLE_SHA256@.
+
+OpenTTD is GPL-2.0 (COPYING.md). OpenGFX is GPL-2.0 and OpenSFX
+CC-BY-SA-3.0; their licences are in baseset/. The icons are the AmiCradle
+Team's own.

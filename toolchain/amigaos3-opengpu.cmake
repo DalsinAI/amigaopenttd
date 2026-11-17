@@ -2,6 +2,8 @@
 # Canonical revival target: 68040 + FPU, libnix, GCC 16.
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR m68k)
+# OpenTTD's CMake (patches/) takes the AmigaOS lane on this.
+set(AMIGAOS3 TRUE)
 
 # All build-amigaos3.sh entry points accept STOVE. Honour that same variable
 # here: otherwise headers can come from Open2 while CMake silently uses the
@@ -62,4 +64,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CMAKE_THREAD_LIBS_INIT "-lpthread")
+# std::atomic of 1 and 4 bytes are library calls on the 68k (libatomic);
+# at the end of every link line, after the objects that need them.
+set(CMAKE_C_STANDARD_LIBRARIES "-latomic" CACHE STRING "")
+set(CMAKE_CXX_STANDARD_LIBRARIES "-latomic" CACHE STRING "")
 set(THREADS_PREFER_PTHREAD_FLAG ON)

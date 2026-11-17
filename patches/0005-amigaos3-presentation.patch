@@ -1,0 +1,366 @@
+diff --git a/src/debug.cpp b/src/debug.cpp
+index 6d1e2aa..df7fad7 100644
+--- a/src/debug.cpp
++++ b/src/debug.cpp
+@@ -124,6 +124,19 @@ void DebugPrint(std::string_view category, int level, std::string &&message)
+ 		fflush(*f);
+ #endif
+ 	} else {
++#if defined(__amigaos__)
++		/* AmigaOS: SetEnv OPENTTD_LOG to a file name and the log goes there,
++		 * flushed line by line, as well as to the Shell. */
++		static FILE *amiga_log = [] {
++			extern std::string AmigaGetVar(const char *name);
++			std::string name = AmigaGetVar("OPENTTD_LOG");
++			return name.empty() ? nullptr : fopen(name.c_str(), "a");
++		}();
++		if (amiga_log != nullptr) {
++			fmt::print(amiga_log, "{}dbg: [{}:{}] {}\n", GetLogPrefix(true), category, level, message);
++			fflush(amiga_log);
++		}
++#endif
+ 		fmt::print(stderr, "{}dbg: [{}:{}] {}\n", GetLogPrefix(true), category, level, message);
+ 
+ 		if (_debug_remote_console.load()) {
+diff --git a/src/framerate_gui.cpp b/src/framerate_gui.cpp
+index c1de3c5..03799df 100644
+--- a/src/framerate_gui.cpp
++++ b/src/framerate_gui.cpp
+@@ -27,6 +27,7 @@
+ #include "timer/timer.h"
+ #include "timer/timer_window.h"
+ #include "zoom_func.h"
++#include "core/string_consumer.hpp"
+ 
+ #include "widgets/framerate_widget.h"
+ 
+@@ -240,6 +241,35 @@ static TimingMeasurement GetPerformanceTimer()
+ }
+ 
+ 
++#if defined(__amigaos__)
++/**
++ * AmigaOS: SetEnv OPENTTD_PERF to a number of seconds and every that many
++ * seconds the log gets the rates the frame rate window shows (game loop,
++ * drawing, video) and the sound mixer's average time, for measuring on a
++ * 68040 without the window on screen.
++ * @param now The time of the game loop just measured.
++ */
++static void AmigaPerformanceLog(TimingMeasurement now)
++{
++	static const TimingMeasurement interval = [] {
++		extern std::string AmigaGetVar(const char *name);
++		std::string s = AmigaGetVar("OPENTTD_PERF");
++		auto seconds = s.empty() ? std::nullopt : ParseInteger<uint32_t>(s);
++		return static_cast<TimingMeasurement>(seconds.value_or(0)) * TIMESTAMP_PRECISION;
++	}();
++	static TimingMeasurement first = 0, next = 0;
++	if (interval == 0) return;
++	if (first == 0) first = next = now;
++	if (now < next) return;
++	next = now + interval;
++	Debug(misc, 0, "perf {:.1f} s: game loop {:.1f}/s (wants {:.1f}), drawing {:.1f}/s, video {:.1f}/s, sound mixing {:.2f} ms",
++		(double)(now - first) / TIMESTAMP_PRECISION,
++		_pf_data[PFE_GAMELOOP].GetRate(), _pf_data[PFE_GAMELOOP].expected_rate,
++		_pf_data[PFE_DRAWING].GetRate(), _pf_data[PFE_VIDEO].GetRate(),
++		_pf_data[PFE_SOUND].GetAverageDurationMilliseconds(NUM_FRAMERATE_POINTS));
++}
++#endif
++
+ /**
+  * Begin a cycle of a measured element.
+  * @param elem The element to be measured
+@@ -279,6 +309,9 @@ PerformanceMeasurer::~PerformanceMeasurer()
+ 		return;
+ 	}
+ 	_pf_data[this->elem].Add(this->start_time, GetPerformanceTimer());
++#if defined(__amigaos__)
++	if (this->elem == PFE_GAMELOOP) AmigaPerformanceLog(this->start_time);
++#endif
+ }
+ 
+ /** Set the rate of expected cycles per second of a performance element. */
+diff --git a/src/os/unix/amiga.cpp b/src/os/unix/amiga.cpp
+index 915fcd7..b9b17c0 100644
+--- a/src/os/unix/amiga.cpp
++++ b/src/os/unix/amiga.cpp
+@@ -11,6 +11,9 @@
+  * statvfs(): the C++ library's std::filesystem::space() calls it, and libnix
+  * declares it without having it. Here it asks AmigaDOS (Info()) about the
+  * volume a path is on.
++ *
++ * AmigaGetVar(): an AmigaDOS variable (Set/SetEnv) straight from dos.library,
++ * for the port's own switches.
+  */
+ 
+ #include <errno.h>
+@@ -20,6 +23,8 @@
+ #include <dos/dos.h>
+ #include <proto/exec.h>
+ #include <proto/dos.h>
++#include <dos/var.h>
++#include <string>
+ 
+ int statvfs(const char *__restrict path, struct statvfs *__restrict buf)
+ {
+@@ -50,3 +55,16 @@ int statvfs(const char *__restrict path, struct statvfs *__restrict buf)
+ 	FreeVec(info);
+ 	return 0;
+ }
++
++/**
++ * Read an AmigaDOS variable, local (Set) or global (SetEnv, ENV:).
++ * @param name The variable's name.
++ * @return Its value, or empty when it is not set.
++ */
++std::string AmigaGetVar(const char *name)
++{
++	char buf[256];
++	LONG len = GetVar(const_cast<STRPTR>(name), buf, sizeof(buf), 0);
++	if (len <= 0) return {};
++	return std::string(buf, len);
++}
+diff --git a/src/os/unix/unix_main.cpp b/src/os/unix/unix_main.cpp
+index 93b57fa..7cc7b5b 100644
+--- a/src/os/unix/unix_main.cpp
++++ b/src/os/unix/unix_main.cpp
+@@ -18,8 +18,19 @@
+ 
+ #include "../../safeguards.h"
+ 
++#if defined(__amigaos__)
++/* libnix gives the program a stack of at least this many bytes, whatever
++ * the Shell or the icon says (OpenTTD and its script VM recurse deeply). */
++extern "C" { unsigned long __stack = 2 * 1024 * 1024; }
++#endif
++
+ int CDECL main(int argc, char *argv[])
+ {
++#if defined(__amigaos__)
++	/* libnix writes stderr a character at a time, which costs a second a
++	 * line of log on a file or a console: write it a line at a time. */
++	setvbuf(stderr, nullptr, _IOLBF, 1024);
++#endif
+ 	/* Make sure our arguments contain only valid UTF-8 characters. */
+ 	std::vector<std::string_view> params;
+ 	for (int i = 0; i < argc; ++i) {
+diff --git a/src/table/settings/misc_settings.ini b/src/table/settings/misc_settings.ini
+index 86b15c3..b0dae24 100644
+--- a/src/table/settings/misc_settings.ini
++++ b/src/table/settings/misc_settings.ini
+@@ -73,11 +73,20 @@ def      = StationFacilities({StationFacility::Train, StationFacility::TruckStop
+ full     = _facility_display_opt_modes
+ 
+ [SDTG_BOOL]
++ifndef   = __amigaos__
+ name     = ""fullscreen""
+ var      = _fullscreen
+ def      = false
+ cat      = SC_BASIC
+ 
++; AmigaOS: a screen of the game's own
++[SDTG_BOOL]
++ifdef    = __amigaos__
++name     = ""fullscreen""
++var      = _fullscreen
++def      = true
++cat      = SC_BASIC
++
+ [SDTG_BOOL]
+ ifdef    = WITH_COCOA
+ name     = ""video_hw_accel""
+@@ -99,6 +108,7 @@ def      = false
+ cat      = SC_BASIC
+ 
+ [SDTG_OMANY]
++ifndef   = __amigaos__
+ name     = ""support8bpp""
+ type     = SLE_UINT8
+ var      = _support8bpp
+@@ -107,6 +117,19 @@ max      = 2
+ full     = _support8bppmodes
+ cat      = SC_BASIC
+ 
++; AmigaOS: the 8bpp blitter with an 8bpp base set (OpenGFX), a quarter of
++; the 32bpp blitter's memory traffic on a 68040, and palette animation
++; without redrawing the screen
++[SDTG_OMANY]
++ifdef    = __amigaos__
++name     = ""support8bpp""
++type     = SLE_UINT8
++var      = _support8bpp
++def      = 1
++max      = 2
++full     = _support8bppmodes
++cat      = SC_BASIC
++
+ [SDTG_SSTR]
+ name     = ""soundsset""
+ type     = SLE_STRQ
+@@ -157,6 +180,7 @@ cat      = SC_BASIC
+ 
+ ; workaround for implicit lengthof() in SDTG_LIST
+ [SDTG_LIST]
++ifndef   = __amigaos__
+ name     = ""resolution""
+ type     = SLE_UINT
+ length   = 2
+@@ -164,6 +188,16 @@ var      = _cur_resolution
+ def      = ""0,0""
+ cat      = SC_BASIC
+ 
++; AmigaOS: 640x480, OpenTTD's smallest comfortable size, for a 68040
++[SDTG_LIST]
++ifdef    = __amigaos__
++name     = ""resolution""
++type     = SLE_UINT
++length   = 2
++var      = _cur_resolution
++def      = ""640,480""
++cat      = SC_BASIC
++
+ [SDTG_SSTR]
+ name     = ""screenshot_format""
+ type     = SLE_STR
+diff --git a/src/table/settings/world_settings.ini b/src/table/settings/world_settings.ini
+index 5c5012c..f66f5bd 100644
+--- a/src/table/settings/world_settings.ini
++++ b/src/table/settings/world_settings.ini
+@@ -243,6 +243,7 @@ strval   = STR_JUST_COMMA
+ cat      = SC_BASIC
+ 
+ [SDT_VAR]
++ifndef   = __amigaos__
+ var      = game_creation.map_x
+ type     = SLE_UINT8
+ flags    = SettingFlag::NotInSave, SettingFlag::NoNetworkSync
+@@ -251,7 +252,19 @@ min      = MIN_MAP_SIZE_BITS
+ max      = MAX_MAP_SIZE_BITS
+ cat      = SC_BASIC
+ 
++; AmigaOS: new maps 64 tiles a side by default, for a 68040
+ [SDT_VAR]
++ifdef    = __amigaos__
++var      = game_creation.map_x
++type     = SLE_UINT8
++flags    = SettingFlag::NotInSave, SettingFlag::NoNetworkSync
++def      = 6
++min      = MIN_MAP_SIZE_BITS
++max      = MAX_MAP_SIZE_BITS
++cat      = SC_BASIC
++
++[SDT_VAR]
++ifndef   = __amigaos__
+ var      = game_creation.map_y
+ type     = SLE_UINT8
+ flags    = SettingFlag::NotInSave, SettingFlag::NoNetworkSync
+@@ -260,6 +273,17 @@ min      = MIN_MAP_SIZE_BITS
+ max      = MAX_MAP_SIZE_BITS
+ cat      = SC_BASIC
+ 
++; AmigaOS: new maps 64 tiles a side by default, for a 68040
++[SDT_VAR]
++ifdef    = __amigaos__
++var      = game_creation.map_y
++type     = SLE_UINT8
++flags    = SettingFlag::NotInSave, SettingFlag::NoNetworkSync
++def      = 6
++min      = MIN_MAP_SIZE_BITS
++max      = MAX_MAP_SIZE_BITS
++cat      = SC_BASIC
++
+ [SDT_VAR]
+ var      = game_creation.water_borders
+ type     = SLE_UINT8
+diff --git a/src/thread.h b/src/thread.h
+index b33a953..7a9867b 100644
+--- a/src/thread.h
++++ b/src/thread.h
+@@ -46,6 +46,14 @@ void SetCurrentThreadName(const std::string &name);
+ template <class TFn, class... TArgs>
+ inline bool StartNewThread(std::thread *thr, std::string_view name, TFn&& _Fx, TArgs&&... _Ax)
+ {
++#if defined(__amigaos__)
++	/* AmigaOS 3.x on one 68040: every caller has a path without a thread
++	 * (the game loop, saving, link graph jobs), which is the faster one on a
++	 * single CPU and keeps the game to one task. */
++	(void)thr; (void)_Fx; ((void)_Ax, ...);
++	Debug(misc, 1, "Not starting thread '{}' on AmigaOS", name);
++	return false;
++#endif
+ 	try {
+ 		static std::mutex thread_startup_mutex;
+ 		std::lock_guard<std::mutex> lock(thread_startup_mutex);
+diff --git a/src/video/video_driver.cpp b/src/video/video_driver.cpp
+index 85cc2d5..8d31cd5 100644
+--- a/src/video/video_driver.cpp
++++ b/src/video/video_driver.cpp
+@@ -69,6 +69,13 @@ void VideoDriver::GameLoopPause()
+ {
+ 	/* If we are not called from the game-thread, ignore this request. */
+ 	if (std::this_thread::get_id() != this->game_thread.get_id()) return;
++#if defined(__amigaos__)
++	/* With no game thread, game_thread's id is the "no thread" id, and so is
++	 * this_thread's on AmigaOS (the main task is no pthread), so the test
++	 * above passes: then this would unlock a mutex nobody holds and wait for
++	 * ever on the next. There is nothing to pause without a game thread. */
++	if (!this->game_thread.joinable()) return;
++#endif
+ 
+ 	this->game_state_mutex.unlock();
+ 
+diff --git a/src/widget.cpp b/src/widget.cpp
+index daf0172..2597afc 100644
+--- a/src/widget.cpp
++++ b/src/widget.cpp
+@@ -2750,32 +2750,37 @@ NWidgetLeaf::NWidgetLeaf(WidgetType tp, Colours colour, WidgetID index, const Wi
+ 			this->SetToolTip(STR_TOOLTIP_WINDOW_TITLE_DRAG_THIS);
+ 			break;
+ 
++		/* The title bar buttons keep the shape of their unscaled size. min_x and
++		 * min_y are still 0 here (SetMinimalSize() sets the unscaled ones), and
++		 * 0/0 gave a NaN aspect ratio: x86-64 turns uint(NaN * height) into 0,
++		 * the 68k FPU into 2^31, so on AmigaOS every window with a close box
++		 * was 2^31 pixels wide and opened off the screen. */
+ 		case WWT_STICKYBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_STICKYBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_STICKY);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_SHADEBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_SHADEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_SHADE);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DEBUGBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_DEBUGBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_DEBUG);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DEFSIZEBOX:
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_DEFSIZEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_DEFSIZE);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_RESIZEBOX:
+@@ -2789,7 +2794,7 @@ NWidgetLeaf::NWidgetLeaf(WidgetType tp, Colours colour, WidgetID index, const Wi
+ 			this->SetFill(0, 0);
+ 			this->SetMinimalSize(WidgetDimensions::WD_CLOSEBOX_WIDTH, WidgetDimensions::WD_CAPTION_HEIGHT);
+ 			this->SetToolTip(STR_TOOLTIP_CLOSE_WINDOW);
+-			this->SetAspect(this->min_x, this->min_y);
++			this->SetAspect(this->uz_min_x, this->uz_min_y);
+ 			break;
+ 
+ 		case WWT_DROPDOWN:

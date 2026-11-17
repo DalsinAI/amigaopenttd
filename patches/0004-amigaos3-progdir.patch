@@ -1,0 +1,52 @@
+diff --git a/src/fileio.cpp b/src/fileio.cpp
+index 51b3333..4d0818d 100644
+--- a/src/fileio.cpp
++++ b/src/fileio.cpp
+@@ -20,6 +20,8 @@
+ #elif defined(__HAIKU__)
+ #include <Path.h>
+ #include <storage/FindDirectory.h>
++#elif defined(__amigaos__)
++#include <unistd.h>
+ #else
+ #include <unistd.h>
+ #include <pwd.h>
+@@ -349,6 +351,10 @@ void AppendPathSeparator(std::string &buf)
+ {
+ 	if (buf.empty()) return;
+ 
++#if defined(__amigaos__)
++	/* "PROGDIR:" is a directory already; "PROGDIR:/" would be its parent. */
++	if (buf.back() == ':') return;
++#endif
+ 	if (buf.back() != PATHSEPCHAR) buf.push_back(PATHSEPCHAR);
+ }
+ 
+@@ -736,6 +742,9 @@ static std::string GetHomeDir()
+ 	BPath path;
+ 	find_directory(B_USER_SETTINGS_DIRECTORY, &path);
+ 	return std::string(path.Path());
++#elif defined(__amigaos__)
++	/* No home directory: the game keeps everything in its own drawer. */
++	return {};
+ #else
+ 	auto home_env = GetEnv("HOME"); // Stack var, shouldn't be freed
+ 	if (home_env.has_value()) return std::string(*home_env);
+@@ -752,6 +761,17 @@ static std::string GetHomeDir()
+  */
+ void DetermineBasePaths(std::string_view exe)
+ {
++#if defined(__amigaos__)
++	/* AmigaOS: the game, its data, its settings and its saves are all in
++	 * the game's own drawer, PROGDIR:, wherever it is started from. */
++	(void)exe;
++	for (auto &searchpath : _searchpaths) searchpath.clear();
++	_searchpaths[SP_PERSONAL_DIR] = "PROGDIR:";
++	_searchpaths[SP_AUTODOWNLOAD_PERSONAL_DIR] = "PROGDIR:content_download" PATHSEP;
++	_searchpaths[SP_BINARY_DIR] = "PROGDIR:";
++	_do_scan_working_directory = false;
++	return;
++#endif
+ 	std::string tmp;
+ 	const std::string homedir = GetHomeDir();
+ #ifdef USE_XDG

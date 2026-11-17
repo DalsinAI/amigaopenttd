@@ -1,0 +1,18 @@
+{
+  "about": "The Workbench icons of the OpenTTD drawer: python3 AMICRADLE/scripts/ports/port_icons.py icons/icons.json --out icons (DalsinAI/amicradle). The art (art/openttd.svg, drawn as an OS 3.5 GlowIcon: shaped, shaded, see-through round the edges) is The AmiCradle Team's own, under the same terms as the other Amiga files; art/openttd.png is it rendered at 128 x 128.",
+  "drawer": {
+    "name": "OpenTTD"
+  },
+  "badge": "art/openttd.png",
+  "icons": [
+    {
+      "file": "openttd.info",
+      "kind": "tool",
+      "stack": 2097152
+    },
+    {
+      "file": "ReadMe.info",
+      "kind": "readme"
+    }
+  ]
+}
