@@ -28,9 +28,11 @@ receipt.json (in capitals); one left unfilled stops the build, as does a
 line over 78 characters.
 
 OUT gets:
-  ARCHIVE.lha          level-1 headers, -lh5-, as Amiga LhA writes them
-                       (tools/lha_archive.py), the drawer and its icon, and
-                       the "root" files beside them
+  ARCHIVE.lha          level-1 headers, -lh5-, as Amiga LhA writes them,
+                       the drawer and its icon, and the "root" files beside
+                       them; packed by gflha (DalsinAI/gfopenlha: GFLHA=, or
+                       on PATH) when there is one, otherwise by
+                       tools/lha_archive.py. Both make the same bytes
   ARCHIVE.lha.sha256
   ARCHIVE.readme       the Aminet-style description
   DRAWER/ DRAWER.info  the drawer as it unpacks
@@ -51,8 +53,10 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 from pathlib import Path
 
@@ -82,6 +86,40 @@ def fill(template: Path, version: str, receipt: dict) -> bytes:
     if long:
         raise SystemExit(f"{template.name}: lines over {MAX_LINE} characters: {long}")
     return text.encode("latin-1")              # MultiView and the Shell read Latin-1
+
+
+def gflha_tool() -> str | None:
+    found = os.environ.get("GFLHA") or shutil.which("gflha")
+    return found if found and os.access(found, os.X_OK) else None
+
+
+def write_archive(path: Path, members: list, stamp: float) -> Path:
+    """The archive, by gflha when there is one, checked member for member either way."""
+    tool = gflha_tool()
+    if tool is None:
+        lha = lha_archive.write(path, members)
+        back = lha_archive.read(lha.read_bytes())
+        if [(m.path, m.data) for m in back] != [(m.path, m.data) for m in members]:
+            raise SystemExit("the archive does not read back as written")
+        print("packed by tools/lha_archive.py", file=sys.stderr)
+        return lha
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        lines = []
+        for i, m in enumerate(members):
+            if any(c in m.path + m.comment for c in "\t\n\r"):
+                raise SystemExit(f"a tab or a new line in a member's name or comment: {m.path!r}")
+            src = tmp / f"m{i}"
+            src.write_bytes(m.data)
+            lines.append(f"{m.path}\t{src}\t{m.protect & 0xFF}\t{int(stamp)}\t{m.comment}\n")
+        (tmp / "list").write_text("".join(lines), encoding="latin-1")
+        subprocess.run([tool, "a", str(path), str(tmp / "list")], check=True)
+        subprocess.run([tool, "x", str(path), str(tmp / "back")], check=True, stdout=subprocess.DEVNULL)
+        for m in members:
+            if (tmp / "back" / m.path).read_bytes() != m.data:
+                raise SystemExit(f"the archive does not read back as written: {m.path}")
+    print(f"packed by {tool}", file=sys.stderr)
+    return path
 
 
 def untarred(blob: bytes) -> list[tuple[str, bytes]]:
@@ -151,10 +189,7 @@ def main() -> int:
     listing = [{"path": m.path, "bytes": len(m.data), "sha256": sha256(m.data)} for m in members]
 
     args.out.mkdir(parents=True, exist_ok=True)
-    lha = lha_archive.write(args.out / f"{base}.lha", members)
-    back = lha_archive.read(lha.read_bytes())  # it reads back, member for member
-    if [(m.path, m.data) for m in back] != [(m.path, m.data) for m in members]:
-        raise SystemExit("the archive does not read back as written")
+    lha = write_archive(args.out / f"{base}.lha", members, stamp)
     digest = sha256(lha.read_bytes())
     (args.out / f"{base}.lha.sha256").write_text(f"{digest}  {lha.name}\n")
     width = max(len(k) for k, _ in spec["aminet"]) + 2
