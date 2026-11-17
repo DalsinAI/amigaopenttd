@@ -1,0 +1,25 @@
+{
+  "drawer": "OpenTTD",
+  "drawer_icon": "icons/OpenTTD.info",
+  "archive": "openttd-{version}-68040",
+  "members": [
+    {"name": "openttd", "build": "OpenTTD/openttd", "check": "executable_sha256"},
+    {"name": "openttd.info", "repo": "icons/openttd.info"},
+    {"name": "ReadMe", "readme": "package/ReadMe.in"},
+    {"name": "ReadMe.info", "repo": "icons/ReadMe.info"},
+    {"name": "", "tar": "openttd-data.tar"}
+  ],
+  "aminet": [
+    ["Short", "OpenTTD 15.3, the Transport Tycoon Deluxe engine"],
+    ["Author", "OpenTTD: the OpenTTD team; Amiga port: AmiCradle Team"],
+    ["Uploader", "AmiCradle Team"],
+    ["Type", "game/strat"],
+    ["Version", "{version}"],
+    ["Requires", "AmigaOS 3.2, 68040/68060 with FPU, RTG, GFOpenGPU (SDL2.module), 64 MB RAM"],
+    ["Architecture", "m68k-amigaos >= 3.2"]
+  ],
+  "root": [
+    {"name": "Install-OpenTTD", "repo": "package/installer/Install-OpenTTD", "installer": true},
+    {"name": "Install-OpenTTD.info", "repo": "package/installer/Install-OpenTTD.info"}
+  ]
+}
