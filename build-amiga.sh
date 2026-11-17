@@ -1,9 +1,10 @@
 #!/bin/sh
 # OpenTTD for AmigaOS 3.x / AmiCradle (68040 + FPU, libnix, SDL 2 through
 # GFOpenGPU), built with the os32-gcc16 stove: OpenAmigaGCC 16.2.0-open3 or
-# open4, known by their archives' SHA-256, or GFOpenAmigaGCC 16.2.0-open5
-# (Cradle's os32-gcc16 stove), which has no published archive: its receipt
-# records the SHA-256 of the compiler's own programs instead. This is the
+# open4, known by their archives' SHA-256; GFOpenAmigaGCC 16.2.0-open6 or
+# later (open8 is Cradle's default), whose STOVE.json records its published
+# archive's SHA-256; or GFOpenAmigaGCC 16.2.0-open5, which has no published
+# archive: its receipt records the SHA-256 of the compiler's own programs. This is the
 # build Cradle's stove_build runs (STOVE= and OUT= set, target .).
 #   STOVE   the stove (default ~/AmiCradle/stoves/os32-gcc16, then
 #           ~/AmigaChrome/stoves/os32-gcc16)
@@ -59,15 +60,25 @@ if (stove / "STOVE.json").is_file():
     release = info.get("release")
 if got is None and (stove / "provenance.json").is_file():
     got = json.loads((stove / "provenance.json").read_text()).get("archive_sha256")
+import re
+m = re.search(r"16\.2\.0-open(\d+)", release or "")
 if got in known:
     print(known[got], got)
+elif got and m and int(m.group(1)) >= 6:
+    # a published GFOpenAmigaGCC 16.2.0-open6 or later: STOVE.json records
+    # the release archive's SHA-256 and the compiler must say the same release
+    name = f"16.2.0-open{m.group(1)}"
+    version = subprocess.run([sys.argv[4], "--version"], capture_output=True, text=True).stdout
+    if f"(GFOpenAmigaGCC {name})" not in version:
+        sys.exit(f"STOVE.json says {release}, the compiler says {version.splitlines()[:1]}")
+    print(name, got)
 elif got is None and release == "GFOpenAmigaGCC 16.2.0-open5":
     version = subprocess.run([sys.argv[4], "--version"], capture_output=True, text=True).stdout
     if "(GFOpenAmigaGCC 16.2.0-open5)" not in version:
         sys.exit(f"STOVE.json says {release}, the compiler says {version.splitlines()[:1]}")
     print("16.2.0-open5", "unpublished")
 else:
-    sys.exit(f"{stove} is not an OpenAmigaGCC 16.2.0-open3 or open4 or a GFOpenAmigaGCC 16.2.0-open5 stove (compiler archive {got}, release {release})")
+    sys.exit(f"{stove} is not an OpenAmigaGCC 16.2.0-open3 or open4 or a GFOpenAmigaGCC 16.2.0-open5 or later stove (compiler archive {got}, release {release})")
 EOF
 )
 RELEASE=${COMPILER% *}
