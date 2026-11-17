@@ -20,10 +20,27 @@ OUT=$(CDPATH= cd -- "$OUT" && pwd)
 BUILD=${BUILD:-"$OUT/build"}
 mkdir -p "$BUILD"
 
-# the game (skipped when BUILD already holds this commit's build: BUILD set
-# to a finished build-amiga.sh OUT)
-REV=$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo unknown)
-if [ ! -f "$BUILD/receipt.json" ] || ! grep -q "\"repository_commit\": \"$REV\"" "$BUILD/receipt.json"; then
+# the game, unless BUILD already holds a build from these exact inputs (BUILD
+# set to a finished build-amiga.sh OUT): its receipt's recipe and patch
+# SHA-256 must all match this checkout's, so a change to the build, the
+# toolchain file or any patch always rebuilds
+same_inputs() {
+    [ -f "$BUILD/receipt.json" ] || return 1
+    python3 - "$ROOT" "$BUILD/receipt.json" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+root, r = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text())
+sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
+now = {"recipe": {k: sha(root / k) for k in r.get("recipe", {})},
+       "patches": {p.name: sha(p) for p in sorted((root / "patches").glob("*.patch"))}}
+ok = r.get("recipe") and now["recipe"] == r["recipe"] and now["patches"] == r.get("patches")
+ok = ok and set(r["recipe"]) == {"build-amiga.sh", "toolchain/amigaos3-opengpu.cmake"}
+sys.exit(0 if ok else 1)
+PY
+}
+if same_inputs; then
+    echo "reusing the build in $BUILD (same recipe and patches)"
+else
     OUT="$BUILD" sh "$ROOT/build-amiga.sh"
 fi
 [ -f "$BUILD/OpenTTD/openttd" ] && [ -f "$BUILD/openttd-data.tar" ] || { echo "the build left no OpenTTD/openttd or openttd-data.tar"; exit 1; }
